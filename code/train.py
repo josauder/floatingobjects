@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--augmentation-intensity', type=int, default=1, help="number indicating intensity 0, 1 (noise), 2 (channel shuffle)")
     parser.add_argument('--model', type=str, default="unet")
     parser.add_argument('--add-fdi-ndvi', action="store_true")
+    parser.add_argument('--cache-to-numpy', action="store_true", help="performance optimization: caches images to npz files in a npy folder within data-path.")
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
     parser.add_argument('--epochs', type=int, default=50)
@@ -52,7 +53,7 @@ def main(args):
     tensorboard_logdir = args.tensorboard_logdir
 
     dataset = FloatingSeaObjectDataset(data_path, fold="train", transform=get_transform("train", intensity=args.augmentation_intensity, add_fdi_ndvi=args.add_fdi_ndvi),
-                                       output_size=image_size, seed=args.seed)
+                                       output_size=image_size, seed=args.seed, cache_to_npy=args.cache_to_numpy)
     valid_dataset = FloatingSeaObjectDataset(data_path, fold="val", transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi),
                                              output_size=image_size, seed=args.seed, hard_negative_mining=False)
 

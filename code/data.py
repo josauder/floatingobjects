@@ -24,13 +24,13 @@ allregions = [
     "lagos_20200505",
     "london_20180611",
     "longxuyen_20181102",
-    "mandaluyong_20180314",  
+    "mandaluyong_20180314",
     "neworleans_20200202",
     "panama_20190425",
     "portalfredSouthAfrica_20180601",
     "riodejaneiro_20180504",
     "sandiego_20180804",
-    "sanfrancisco_20190219", 
+    "sanfrancisco_20190219",
     "shengsi_20190615",
     "suez_20200403",
     "tangshan_20180130",
@@ -79,7 +79,7 @@ def split_line_gdf_into_segments(lines):
 class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __init__(self, root, region, output_size=64,
                  transform=None, hard_negative_mining=True,
-                 use_l2a_probability=0.5):
+                 use_l2a_probability=0.5, cache_to_npy=False):
 
         shapefile = os.path.join(root, region + ".shp")
         imagefile = os.path.join(root, region + ".tif")
@@ -130,6 +130,10 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         # combine with polygons to rasterize
         self.rasterize_geometries = pd.concat([rasterize_lines, rasterize_polygons])
 
+        if cache_to_npy:
+            self.npyfolder = os.path.join(root, "npy", region)
+            os.makedirs(self.npyfolder, exist_ok=True)
+
     def within_image(self, geometry):
         left, bottom, right, top = geometry.bounds
         ileft, ibottom, iright, itop = self.imagebounds
@@ -164,6 +168,21 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         return len(self.lines)
 
     def __getitem__(self, index):
+
+        # CACHING to Npyfolder for faster loading (20 seconds versus 3 minutes)
+        if hasattr(self, 'npyfolder'):
+            npzfile = os.path.join(self.npyfolder,str(index)+".npz")
+            if os.path.exists(npzfile):
+                with np.load(npzfile) as f:
+                    image = f["image"]
+                    mask = f["mask"]
+                    id = f["id"]
+
+                if self.transform is not None:
+                    image, mask = self.transform(image, mask)
+
+                return image, mask, str(id)
+
         line = self.lines.iloc[index]
         left, bottom, right, top = line.geometry.bounds
 
@@ -217,19 +236,25 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         mask = mask.astype(float)
         image = image.astype(float)
 
-        if self.transform is not None:
-            image, mask = self.transform(image, mask)
-
-        image = np.nan_to_num(image)
-
-        assert not np.isnan(image).any()
-        assert not np.isnan(mask).any()
 
         # mark random points form hard negative mining with a suffix
         # to distinguish them from actual labels
         hard_negative_mining_suffix = "-hnm" if line["is_hnm"] else ""
+        id = f"{self.region}-{index}" + hard_negative_mining_suffix
 
-        return image, mask, f"{self.region}-{index}" + hard_negative_mining_suffix
+        image = np.nan_to_num(image)
+
+        # cache to npz
+        if hasattr(self, 'npyfolder'):
+            np.savez(os.path.join(self.npyfolder, str(index) + ".npz"),
+                     image=image,
+                     mask=mask,
+                     id=id)
+
+        if self.transform is not None:
+            image, mask = self.transform(image, mask)
+
+        return image, mask, id
 
 
 class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
