@@ -55,7 +55,7 @@ def main(args):
     dataset = FloatingSeaObjectDataset(data_path, fold="train", transform=get_transform("train", intensity=args.augmentation_intensity, add_fdi_ndvi=args.add_fdi_ndvi),
                                        output_size=image_size, seed=args.seed, cache_to_npy=args.cache_to_numpy)
     valid_dataset = FloatingSeaObjectDataset(data_path, fold="val", transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi),
-                                             output_size=image_size, seed=args.seed, hard_negative_mining=False)
+                                             output_size=image_size, seed=args.seed, hard_negative_mining=False, cache_to_npy=args.cache_to_numpy)
 
     # store run arguments in the same folder
     run_arguments = vars(args)
