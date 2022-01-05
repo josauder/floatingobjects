@@ -13,7 +13,7 @@ from data import FloatingSeaObjectDataset
 from visualization import plot_batch
 from transforms import get_transform
 import json
-from sklearn.metrics import precision_recall_fscore_support, cohen_kappa_score
+from sklearn.metrics import precision_recall_fscore_support, cohen_kappa_score, roc_auc_score
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--no-pretrained', action="store_true")
+    parser.add_argument('--ignore_border_from_loss_kernelsize', type=int, default=0, help="kernel sizes >0 ignore pixels close to the positive class.")
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--tensorboard-logdir', type=str, default=None)
     parser.add_argument('--pos-weight', type=float, default=1, help="positional weight for the floating object class, large values counteract")
@@ -75,11 +76,42 @@ def main(args):
     # weights = compute_class_occurences(train_loader) #function that computes the occurences of the classes
     pos_weight = torch.FloatTensor([float(args.pos_weight)]).to(device)
 
+
+    def dice_loss(pred, target):
+        """This definition generalize to real valued pred and target vector.
+    This should be differentiable.
+        pred: tensor with first dimension as batch
+        target: tensor with first dimension as batch
+        """
+
+        smooth = 1.
+
+        # have to use contiguous since they may from a torch.view op
+        iflat = pred.contiguous().view(-1)
+        tflat = target.contiguous().view(-1)
+        intersection = (iflat * tflat).sum()
+
+        A_sum = torch.sum(iflat * iflat)
+        B_sum = torch.sum(tflat * tflat)
+
+        return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth))
+
     bcecriterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction="none")
     def criterion(y_pred, target, mask=None):
         """a wrapper around BCEWithLogitsLoss that ignores no-data
         mask provides a boolean mask on valid data"""
         loss = bcecriterion(y_pred, target)
+        #loss = dice_loss(y_pred, target) + bcecriterion(y_pred, target)
+
+        kernelsize = args.ignore_border_from_loss_kernelsize
+        if kernelsize > 0:
+            # calculate border pixels from positives and exclude them from loss
+            dilated = torch.nn.functional.conv2d(target.unsqueeze(1),
+                                                 weight=torch.ones(1, 1, kernelsize, kernelsize).to(target.device) / 9,
+                                                 padding=kernelsize//2).squeeze(1)  > 0
+            border = dilated * ~target.to(bool)
+            mask = torch.logical_or(mask, ~border)
+
         if mask is not None:
             return (loss * mask.double()).mean()
         else:
@@ -122,6 +154,7 @@ def main(args):
 
         if writer is not None:
             writer.add_scalars("loss", {"train": trainloss, "val": valloss}, global_step=epoch)
+            writer.add_scalars("metrics", metrics, global_step=epoch)
             fig = predict_images(val_loader, model, device)
             writer.add_figure("predictions", fig, global_step=epoch)
 
@@ -183,7 +216,8 @@ def validating_epoch(model, val_loader, criterion, device):
             precision = [],
             recall = [],
             fscore = [],
-            kappa = []
+            kappa = [],
+            auroc = []
         )
         with tqdm(enumerate(val_loader), total=len(val_loader), leave=False) as pbar:
             for idx, batch in pbar:
@@ -195,12 +229,15 @@ def validating_epoch(model, val_loader, criterion, device):
                 loss = criterion(y_pred.squeeze(1), target, mask=valid_data)
                 losses.append(loss.cpu().detach().numpy())
                 pbar.set_description(f'val loss {np.array(losses).mean():.4f}')
-                predictions = (y_pred.exp() > 0.5).cpu().detach().numpy()
+                y_score = y_pred.exp()
+                predictions = (y_score > 0.5).cpu().detach().numpy()
                 y_true = target.cpu().view(-1).numpy().astype(bool)
                 y_pred = predictions.reshape(-1)
                 p,r,f,s = precision_recall_fscore_support(y_true=y_true,
                                                 y_pred=y_pred, zero_division=0)
-                metrics["kappa"] = cohen_kappa_score(y_true, y_pred)
+
+                metrics["auroc"].append(roc_auc_score(target.cpu().view(-1).to(int),y_score.cpu().view(-1)))
+                metrics["kappa"].append(cohen_kappa_score(y_true, y_pred))
                 metrics["precision"].append(p)
                 metrics["recall"].append(r)
                 metrics["fscore"].append(f)

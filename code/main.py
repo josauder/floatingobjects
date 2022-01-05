@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--add-fdi-ndvi', action="store_true")
     parser.add_argument('--cache-to-numpy', action="store_true",
                         help="performance optimization: caches images to npz files in a npy folder within data-path.")
+    parser.add_argument('--ignore_border_from_loss_kernelsize', type=int, default=0,
+                        help="kernel sizes >0 ignore pixels close to the positive class.")
     parser.add_argument('--no-pretrained', action="store_true")
     parser.add_argument('--pos-weight', type=float, default=1, help="positional weight for the floating object class, large values counteract")
     args = parser.parse_args()
