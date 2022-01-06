@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--data-path', type=str, default="/data")
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--workers', type=int, default=0)
+    parser.add_argument('--pretrain', type=str, choices=["none", "imagenet", "seco", "coastal_seco"], default="none")
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
     parser.add_argument('--epochs', type=int, default=50)
