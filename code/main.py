@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--augmentation-intensity', type=int, default=1, help="number indicating intensity 0, 1 (noise), 2 (channel shuffle)")
-    parser.add_argument('--model', type=str, default="unet")
+    parser.add_argument('--model', type=str, choices=["unet", "uresnet"], default="unet")
     parser.add_argument('--add-fdi-ndvi', action="store_true")
     parser.add_argument('--cache-to-numpy', action="store_true",
                         help="performance optimization: caches images to npz files in a npy folder within data-path.")

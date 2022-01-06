@@ -8,7 +8,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
-from model import get_model
 from data import FloatingSeaObjectDataset
 from visualization import plot_batch
 from transforms import get_transform
@@ -28,6 +27,7 @@ def parse_args():
     parser.add_argument('--cache-to-numpy', action="store_true", help="performance optimization: caches images to npz files in a npy folder within data-path.")
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
+    parser.add_argument('--pretrain', type=str, choices=["none", "imagenet", "seco", "coastal_seco"], default="none")
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--no-pretrained', action="store_true")
     parser.add_argument('--ignore_border_from_loss_kernelsize', type=int, default=0, help="kernel sizes >0 ignore pixels close to the positive class.")
@@ -118,9 +118,24 @@ def main(args):
             return loss.mean()
 
     inchannels = 12 if not args.add_fdi_ndvi else 14
-    model = get_model(args.model, inchannels=inchannels, pretrained=not args.no_pretrained).to(device)
+    if args.model == 'unet':
+        from model import get_model
+        model = get_model(args.model, inchannels=inchannels, pretrained=not args.no_pretrained).to(device)
+    elif args.model == 'uresnet':
+        from uresnet import get_segmentation_model, batch_norm_to_group_norm
+        import torchvision
+        if args.pretrain=='none':
+            backbone = torchvision.models.resnet18(pretrained=False)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        elif args.pretrain=='imagenet':
+            backbone = torchvision.models.resnet18(pretrained=True)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
+        model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512)).to(device)
 
 
+
+        
 
     # initialize optimizer
     optimizer = Adam(model.parameters(), lr=learning_rate)
@@ -186,6 +201,8 @@ def main(args):
 
         metrics_message = ", ".join([f"{k} {v:.2f}" for k,v in metrics.items()])
 
+        with open(args.snapshot_path.split("/")[0] + "log.txt", "a") as fi:
+            fi.write(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
         print(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
 
 
