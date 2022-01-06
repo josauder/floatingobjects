@@ -1,4 +1,6 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 
 def batch_norm_to_group_norm(layer):
