@@ -110,7 +110,7 @@ def main(args):
                                                  weight=torch.ones(1, 1, kernelsize, kernelsize).to(target.device) / 9,
                                                  padding=kernelsize//2).squeeze(1)  > 0
             border = dilated * ~target.to(bool)
-            mask = torch.logical_or(mask, ~border)
+            mask = torch.logical_and(mask, ~border)
 
         if mask is not None:
             return (loss * mask.double()).mean()

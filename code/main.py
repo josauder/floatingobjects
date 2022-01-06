@@ -8,11 +8,12 @@ def main(args):
             args.seed = seed
             args.snapshot_path = os.path.join(args.results_dir, f"model_{seed}.pth.tar")
             if args.tensorboard is not None:
+                os.makedirs(args.tensorboard, exist_ok=True)
                 args.tensorboard_logdir = os.path.join(args.tensorboard, f"model_{seed}/")
             else:
                 args.tensorboard_logdir = None
             os.makedirs(args.results_dir, exist_ok=True)
-            os.makedirs(args.tensorboard, exist_ok=True)
+
             train(args)
     elif args.mode == "predict":
         raise NotImplementedError("here all images should be predicted in a loop using the models trained before")
