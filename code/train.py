@@ -199,10 +199,10 @@ def main(args):
             save_msg = f"saving model to {snapshot_path}"  # add this message if model saved
             snapshot(snapshot_path, model, optimizer, epoch, logs)
 
-        metrics_message = ", ".join([f"{k} {v:.2f}" for k,v in metrics.items()])
+        metrics_message = ", ".join([f"{k} {v:.6f}" for k,v in metrics.items()])
 
         with open(args.snapshot_path.split("/")[0] + "log.txt", "a") as fi:
-            fi.write(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
+            fi.write(f"epoch {epoch}: trainloss {trainloss:.6f}, valloss {valloss:.6f}, {metrics_message}\n")
         print(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
 
 
