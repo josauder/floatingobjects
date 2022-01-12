@@ -127,6 +127,8 @@ class RN18(nn.Module):
     if channels == 'all':
         encoder_q.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     self.encoder_q = nn.Sequential(*list(encoder_q.children()))
+    self.load_state_dict(state_dict)
+
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
