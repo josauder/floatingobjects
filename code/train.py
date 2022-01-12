@@ -265,9 +265,18 @@ def validating_epoch(model, val_loader, criterion, device):
                 y_pred = predictions.reshape(-1)
                 p,r,f,s = precision_recall_fscore_support(y_true=y_true,
                                                 y_pred=y_pred, zero_division=0)
-
-                metrics["auroc"].append(roc_auc_score(target.cpu().view(-1).to(int),y_score.cpu().view(-1)))
-                metrics["kappa"].append(cohen_kappa_score(y_true, y_pred))
+                
+                try:
+                    metrics["auroc"].append(roc_auc_score(target.cpu().view(-1).to(int),y_score.cpu().view(-1)))
+                except Exception as e:
+                    print(e)
+                    metrics["auroc"].append(-1)
+                try:
+                    metrics["kappa"].append(cohen_kappa_score(y_true, y_pred))
+                except Exception as e:
+                    print(e)
+                    metrics["kappa"].append(-1)
+                
                 metrics["precision"].append(p)
                 metrics["recall"].append(r)
                 metrics["fscore"].append(f)
