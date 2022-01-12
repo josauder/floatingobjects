@@ -1,5 +1,7 @@
 import torch
 import torchvision
+import torch.nn as nn
+import torch.nn.functional as F
 
 def batch_norm_to_group_norm(layer):
     """Iterates over a whole model (or layer of a model) and replaces every batch norm 2D with a group norm

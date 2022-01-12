@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--pretrain', type=str, choices=["none", "imagenet", "seco", "coastal_seco"], default="none")
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--no-pretrained', action="store_true")
+    parser.add_argument('--rgb_only', action="store_true")
     parser.add_argument('--ignore_border_from_loss_kernelsize', type=int, default=0, help="kernel sizes >0 ignore pixels close to the positive class.")
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--tensorboard-logdir', type=str, default=None)
@@ -53,9 +54,9 @@ def main(args):
 
     tensorboard_logdir = args.tensorboard_logdir
 
-    dataset = FloatingSeaObjectDataset(data_path, fold="train", transform=get_transform("train", intensity=args.augmentation_intensity, add_fdi_ndvi=args.add_fdi_ndvi),
+    dataset = FloatingSeaObjectDataset(data_path, fold="train", transform=get_transform("train", intensity=args.augmentation_intensity, add_fdi_ndvi=args.add_fdi_ndvi, rgb_only=args.rgb_only),
                                        output_size=image_size, seed=args.seed, cache_to_npy=args.cache_to_numpy)
-    valid_dataset = FloatingSeaObjectDataset(data_path, fold="val", transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi),
+    valid_dataset = FloatingSeaObjectDataset(data_path, fold="val", transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi, rgb_only=args.rgb_only),
                                              output_size=image_size, seed=args.seed, hard_negative_mining=False, cache_to_npy=args.cache_to_numpy)
 
     # store run arguments in the same folder
@@ -126,10 +127,12 @@ def main(args):
         import torchvision
         if args.pretrain=='none':
             backbone = torchvision.models.resnet18(pretrained=False)
-            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            if  not args.rgb_only:
+                backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         elif args.pretrain=='imagenet':
             backbone = torchvision.models.resnet18(pretrained=True)
-            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            if not args.rgb_only:
+                backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
         model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512)).to(device)
 
