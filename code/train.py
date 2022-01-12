@@ -136,13 +136,16 @@ def main(args):
             backbone = torchvision.models.resnet18(pretrained=False, num_classes=512)
             backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
             ckpt_path =  "/data/jonathan/seco_coastal_checkpoint_rn18.pth"
-
+            print(backbone.conv1.weight[0][0].detach())
             for i, child in enumerate(list(RN18(ckpt_path, "all", out_dim=512).encoder_q.children())):
+                if i == 0:
+                    print(child.weight[0][0].detach())
                 try:
                     list(backbone.children())[i].load_state_dict(child.state_dict())
                 except Exception as e:
                     print(e, i)
             model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512))
+            print(backbone.conv1.weight[0][0].detach())
 
         model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512)).to(device)
 
