@@ -130,7 +130,9 @@ def main(args):
         elif args.pretrain=='imagenet':
             backbone = torchvision.models.resnet18(pretrained=True)
             backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-
+        elif args.pretrain=='coastal_seco':
+            backbone = torchvision.models.resnet18(pretrained=False)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512)).to(device)
 
 
