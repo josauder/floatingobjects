@@ -1,7 +1,8 @@
 import argparse
 from train import main as train
 import os
-
+import warnings
+warnings.filterwarnings("ignore")
 def main(args):
     if args.mode == "train":
         for seed in range(5):

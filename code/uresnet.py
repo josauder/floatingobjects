@@ -1,4 +1,6 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
@@ -114,6 +116,17 @@ class DoubleConv(nn.Module):
         return self.double_conv(x)
 
 
+class RN18(nn.Module):
+  def __init__(self, path, channels, out_dim):
+    super(RN18, self).__init__()
+    try:
+        state_dict = {k: v for k, v in torch.load(path)["state_dict"].items() if "encoder_q" in k}
+    except:
+        state_dict = torch.load(path)
+    encoder_q = torchvision.models.resnet18(num_classes=out_dim)    
+    if channels == 'all':
+        encoder_q.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    self.encoder_q = nn.Sequential(*list(encoder_q.children()))
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 

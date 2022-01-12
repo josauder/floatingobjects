@@ -12,6 +12,7 @@ from data import FloatingSeaObjectDataset
 from visualization import plot_batch
 from transforms import get_transform
 import json
+from uresnet import RN18
 from sklearn.metrics import precision_recall_fscore_support, cohen_kappa_score, roc_auc_score
 
 def parse_args():
@@ -127,12 +128,22 @@ def main(args):
         import torchvision
         if args.pretrain=='none':
             backbone = torchvision.models.resnet18(pretrained=False)
-            if  not args.rgb_only:
-                backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         elif args.pretrain=='imagenet':
             backbone = torchvision.models.resnet18(pretrained=True)
-            if not args.rgb_only:
-                backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        elif args.pretrain=='coastal_seco':
+            backbone = torchvision.models.resnet18(pretrained=False)
+            backbone.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            backbone = torchvision.models.resnet18(pretrained=False, num_classes=512)
+            ckpt_path =  "/data/jonathan/seco_coastal_checkpoint_rn18.pth",
+
+            for i, child in enumerate(list(RN18(ckpt_path, channels, out_dim=512).encoder_q.children())):
+                try:
+                    list(backbone.children())[i].load_state_dict(child.state_dict())
+                except Exception as e:
+                    print(e, i)
+            model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512))
 
         model = get_segmentation_model(backbone, feature_indices=(0, 4, 5, 6, 7), feature_channels=(64, 64, 128, 256, 512)).to(device)
 
@@ -202,10 +213,10 @@ def main(args):
             save_msg = f"saving model to {snapshot_path}"  # add this message if model saved
             snapshot(snapshot_path, model, optimizer, epoch, logs)
 
-        metrics_message = ", ".join([f"{k} {v:.2f}" for k,v in metrics.items()])
+        metrics_message = ", ".join([f"{k} {v:.6f}" for k,v in metrics.items()])
 
         with open(args.snapshot_path.split("/")[0] + "log.txt", "a") as fi:
-            fi.write(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
+            fi.write(f"epoch {epoch}: trainloss {trainloss:.6f}, valloss {valloss:.6f}, {metrics_message}\n")
         print(f"epoch {epoch}: trainloss {trainloss:.4f}, valloss {valloss:.4f}, {metrics_message} ,{save_msg}")
 
 
