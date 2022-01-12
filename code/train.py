@@ -138,7 +138,7 @@ def main(args):
             backbone = torchvision.models.resnet18(pretrained=False, num_classes=512)
             ckpt_path =  "/data/jonathan/seco_coastal_checkpoint_rn18.pth",
 
-            for i, child in enumerate(list(RN18(ckpt_path, channels, out_dim=512).encoder_q.children())):
+            for i, child in enumerate(list(RN18(ckpt_path, "all", out_dim=512).encoder_q.children())):
                 try:
                     list(backbone.children())[i].load_state_dict(child.state_dict())
                 except Exception as e:
